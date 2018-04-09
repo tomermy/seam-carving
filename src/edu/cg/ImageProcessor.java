@@ -105,14 +105,7 @@ public class ImageProcessor extends FunctioalForEachLoops {
             Color nextVerticalPixel = new Color(greyScaledImage
                     .getRGB(x, y == (greyScaledImage.getHeight() - 1) ? y - 1 : y + 1));
 
-            int currGreyColor = currentPixel.getRed(); // RGB values are equal on grey
-            int horizontalGreyColor = nextHorizontalPixel.getRed();
-            int verticalGreyColor = nextVerticalPixel.getRed();
-
-            int dxSquare = (int) Math.pow(currGreyColor - horizontalGreyColor, 2);
-            int dySquare = (int) Math.pow(currGreyColor - verticalGreyColor, 2);
-
-            int gradientMagnitude = (int) Math.sqrt((dxSquare + dySquare) / 2);
+            int gradientMagnitude = getGradientMagnitude(currentPixel, nextHorizontalPixel, nextVerticalPixel);
             Color resultColor = new Color(gradientMagnitude, gradientMagnitude, gradientMagnitude);
 
             ans.setRGB(x, y, resultColor.getRGB());
@@ -121,6 +114,17 @@ public class ImageProcessor extends FunctioalForEachLoops {
         logger.log("gradient magnitude done!");
 
         return ans;
+    }
+
+    public int getGradientMagnitude(Color currentPixel, Color nextHorizontalPixel, Color nextVerticalPixel) {
+        int currGreyColor = currentPixel.getRed(); // RGB values are equal on grey
+        int horizontalGreyColor = nextHorizontalPixel.getRed();
+        int verticalGreyColor = nextVerticalPixel.getRed();
+
+        int dxSquare = (int) Math.pow(currGreyColor - horizontalGreyColor, 2);
+        int dySquare = (int) Math.pow(currGreyColor - verticalGreyColor, 2);
+
+        return (int) Math.sqrt((dxSquare + dySquare) / 2);
     }
 
 
@@ -150,7 +154,7 @@ public class ImageProcessor extends FunctioalForEachLoops {
 
     public BufferedImage bilinear() {
         //TODO: Implement this method, remove the exception.
-        logger.log("Preparing for nearest neighbor resize...");
+        logger.log("Preparing for bilinear resize...");
         setForEachOutputParameters();
         BufferedImage ans = newEmptyOutputSizedImage();
 
@@ -158,6 +162,7 @@ public class ImageProcessor extends FunctioalForEachLoops {
             double interpolatedX = ((double) x) / ans.getWidth() * workingImage.getWidth();
             double interpolatedY = ((double) y) / ans.getHeight() * workingImage.getHeight();
 
+            // todo: they did casting to int then +1 on the 2nd
             // Find the four nearest points
             int sourceXLeft = (int) Math.floor(interpolatedX);
             int sourceXRight = (int) Math.ceil(interpolatedX);
