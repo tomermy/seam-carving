@@ -15,7 +15,7 @@ public class SeamsCarver extends ImageProcessor {
     private int numOfSeams;
     private ResizeOperation resizeOp;
     private int[][] transformMatrix;
-    private BufferedImage greyScaledImage;
+    private int[][] greyScaledImage;
 
 
     //TODO: Add some additional fields:
@@ -50,15 +50,21 @@ public class SeamsCarver extends ImageProcessor {
         setForEachParameters(outWidth, originalImgHeight);
         forEach((y, x) -> {
             // contains the x location on the original image (y is always the same)
-            transformMatrix[x][y] = x;
+            transformMatrix[y][x] = x;
         });
 
-        // grey scaled copy of the the working image
-        greyScaledImage = greyscale();
+        // init greyScaled version of the working image
+        initializeGreyScaledImage();
 
 
         //TODO: Initialize your additional fields and apply some preliminary calculations:
 
+    }
+
+    private void initializeGreyScaledImage() {
+        BufferedImage tempGreyScaledImage = greyscale();
+        greyScaledImage = new int[this.inWidth][this.inHeight];
+        forEach((y, x) -> greyScaledImage[y][x] = new Color(tempGreyScaledImage.getRGB(x,y)).getRed());
     }
 
     //MARK: Methods
@@ -78,7 +84,7 @@ public class SeamsCarver extends ImageProcessor {
         int originalImgWidth = gradMagnitudeImage.getWidth();
         int originalImgHeight = gradMagnitudeImage.getHeight();
 
-        // initialize the begining values of the cost matrix according to magnitude
+        // initialize the beginning values of the cost matrix according to magnitude
         long[][] tempCostMatrix = new long[transformMatrix[0].length][transformMatrix.length];
 
         // width, height
@@ -95,43 +101,50 @@ public class SeamsCarver extends ImageProcessor {
             } else {
 
                 // todo: Test that this is the right indexes
-                int cV, cL = 0, cR = 0;
-                if (x - 1 < 0){
-                    cV = (new Color(greyScaledImage.getRGB(transformMatrix[y][x + 1], y))).getRed();
-                    cL = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
-                } else if (x + 1 > transformMatrix[0].length - 1) {
-                    cV = (new Color(greyScaledImage.getRGB(transformMatrix[y][x - 1], y))).getRed();
-                    cR = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
-                } else {
-                    cV = Math.abs((new Color(greyScaledImage.getRGB(transformMatrix[y][x + 1], y))).getRed()
-                            - (new Color(greyScaledImage.getRGB(transformMatrix[y][x - 1], y))).getRed());
-                }
-
-                if (x - 1 >= 0){
-                    cL = cV + Math.abs((new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed()
-                            - (new Color(greyScaledImage.getRGB(transformMatrix[y][x - 1], y))).getRed());
-                }
-
-                if (x + 1 <= transformMatrix[0].length - 1) {
-                    cR = cV +Math.abs((new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed()
-                            - (new Color(greyScaledImage.getRGB(transformMatrix[y][x + 1], y))).getRed());
-                }
-
-                long left = x - 1 < 0 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x - 1] + cL;
-                long up = tempCostMatrix[y - 1][x] + cV;
-                long right = x + 1 > tempCostMatrix[0].length - 1 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x + 1] + cR;
-
-
-                // minimum
-                long min = Math.min(up, Math.min(left, right));
-
-                // todo: set the value of each cell to be...
-                // energy + min
-                // reminder: magnitude "next pixel logic" (if x+1 is out of bounds, go x-1)
+                long min = getMinimalCost(tempCostMatrix, y, x);
+                int nextX = x + 1 <= transformMatrix[0].length - 1 ? x + 1 : x - 1;
+                tempCostMatrix[y][x] = min
+                        + Math.abs(greyScaledImage[y][transformMatrix[y][x]]
+                            - greyScaledImage[y][transformMatrix[y][nextX]]);
             }
         });
-        // replace
         return tempCostMatrix;
+    }
+
+    private long getMinimalCost(long[][] tempCostMatrix, Integer y, Integer x) {
+        int cV, cL, cR;
+        if (x - 1 < 0){
+            cV = greyScaledImage[y][transformMatrix[y][x + 1]];
+//                    cL = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
+        } else if (x + 1 > transformMatrix[0].length - 1) {
+            cV = greyScaledImage[y][transformMatrix[y][x - 1]];
+//                    cR = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
+        } else {
+            cV = Math.abs(greyScaledImage[y][transformMatrix[y][x + 1]]
+                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
+        }
+
+        if (x - 1 >= 0){
+            cL = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
+                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
+        } else {
+            cL = 0;
+        }
+
+        if (x + 1 <= transformMatrix[0].length - 1) {
+            cR = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
+                    - greyScaledImage[y][transformMatrix[y][x + 1]]);
+        } else {
+            cR = 0;
+        }
+
+        long left = x - 1 < 0 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x - 1] + cL;
+        long up = tempCostMatrix[y - 1][x] + cV;
+        long right = x + 1 > tempCostMatrix[0].length - 1 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x + 1] + cR;
+
+
+        // minimum
+        return Math.min(up, Math.min(left, right));
     }
 
     private BufferedImage increaseImageWidth() {
