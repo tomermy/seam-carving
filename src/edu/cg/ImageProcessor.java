@@ -162,19 +162,14 @@ public class ImageProcessor extends FunctioalForEachLoops {
             double interpolatedX = ((double) x) / ans.getWidth() * workingImage.getWidth();
             double interpolatedY = ((double) y) / ans.getHeight() * workingImage.getHeight();
 
-            // todo: they did casting to int then +1 on the 2nd
             // Find the four nearest points
             int sourceXLeft = (int) Math.floor(interpolatedX);
             int sourceXRight = (int) Math.ceil(interpolatedX);
-//            int sourceXRight = sourceXLeft + 1;
             int sourceYBottom = (int) Math.floor(interpolatedY);
             int sourceYTop = (int) Math.ceil(interpolatedY);
-//            int sourceYTop = sourceYBottom + 1;
 
             // Handle boundaries case
-            sourceXLeft = Math.min(sourceXLeft, workingImage.getWidth() - 1);
             sourceXRight = Math.min(sourceXRight, workingImage.getWidth() - 1);
-            sourceYBottom = Math.min(sourceYBottom, workingImage.getHeight() - 1);
             sourceYTop = Math.min(sourceYTop, workingImage.getHeight() - 1);
 
             // value of the four nearest points
@@ -187,21 +182,18 @@ public class ImageProcessor extends FunctioalForEachLoops {
             double yAxisTValue = sourceYTop - interpolatedY;
 
             // interpolations on the X-axis
-//            int vTop = (int) ((1 - xAxisTValue) * cLeftTop.getRGB() + xAxisTValue * cRightTop.getRGB());
-            int vTopRed = (int) ((1 - xAxisTValue) * cLeftTop.getRed() + xAxisTValue * cRightTop.getRed());
-            int vTopGreen = (int) ((1 - xAxisTValue) * cLeftTop.getGreen() + xAxisTValue * cRightTop.getGreen());
-            int vTopBlue = (int) ((1 - xAxisTValue) * cLeftTop.getBlue() + xAxisTValue * cRightTop.getBlue());
+            int vTopRed = (int) (xAxisTValue * cLeftTop.getRed() + (1 - xAxisTValue) * cRightTop.getRed());
+            int vTopGreen = (int) (xAxisTValue * cLeftTop.getGreen() + (1 - xAxisTValue) * cRightTop.getGreen());
+            int vTopBlue = (int) (xAxisTValue * cLeftTop.getBlue() + (1 - xAxisTValue) * cRightTop.getBlue());
 
-//            int vBottom = (int) ((1 - xAxisTValue) * cLeftBottom.getRGB() + xAxisTValue * cRightBottom.getRGB());
-            int vBottomRed = (int) ((1 - xAxisTValue) * cLeftBottom.getRed() + xAxisTValue * cRightBottom.getRed());
-            int vBottomGreen = (int) ((1 - xAxisTValue) * cLeftBottom.getGreen() + xAxisTValue * cRightBottom.getGreen());
-            int vBottomBlue = (int) ((1 - xAxisTValue) * cLeftBottom.getBlue() + xAxisTValue * cRightBottom.getBlue());
+            int vBottomRed = (int) (xAxisTValue * cLeftBottom.getRed() + (1 - xAxisTValue) * cRightBottom.getRed());
+            int vBottomGreen = (int) (xAxisTValue * cLeftBottom.getGreen() + (1 - xAxisTValue) * cRightBottom.getGreen());
+            int vBottomBlue = (int) (xAxisTValue * cLeftBottom.getBlue() + (1 - xAxisTValue) * cRightBottom.getBlue());
 
             // interpolation between X-axis results on the Y-axis
-//            int vFinal = (int) ((1 - yAxisTValue) * vBottom + yAxisTValue * vTop);
-            int vFinalRed = (int) ((1 - yAxisTValue) * vBottomRed + yAxisTValue * vTopRed);
-            int vFinalGreen = (int) ((1 - yAxisTValue) * vBottomGreen + yAxisTValue * vTopGreen);
-            int vFinalBlue = (int) ((1 - yAxisTValue) * vBottomBlue + yAxisTValue * vTopBlue);
+            int vFinalRed = (int) (yAxisTValue * vBottomRed + (1 - yAxisTValue) * vTopRed);
+            int vFinalGreen = (int) (yAxisTValue * vBottomGreen + (1 - yAxisTValue) * vTopGreen);
+            int vFinalBlue = (int) (yAxisTValue * vBottomBlue + (1 - yAxisTValue) * vTopBlue);
 
             Color resultColor = new Color(vFinalRed, vFinalGreen, vFinalBlue);
             ans.setRGB(x, y, resultColor.getRGB());
