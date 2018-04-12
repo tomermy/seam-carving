@@ -17,7 +17,7 @@ public class SeamsCarver extends ImageProcessor {
     private int[][] transformMatrix;
     private int[][] greyScaledImage;
     private int[][] minParentsPaths;
-    private int[][] allSeams;
+    private Seam[][] allSeams;
     private int kNumOfSeams;
 //    private int[][] currentCostMatrix;
 
@@ -63,7 +63,7 @@ public class SeamsCarver extends ImageProcessor {
         initializeGreyScaledImage();
         // todo: verify it gets the right value
         kNumOfSeams = Math.abs(inWidth - outWidth);
-        allSeams = new int[kNumOfSeams][inHeight];
+        allSeams = new Seam[kNumOfSeams][inHeight];
 
         //TODO: Initialize your additional fields and apply some preliminary calculations:
     }
@@ -118,11 +118,14 @@ public class SeamsCarver extends ImageProcessor {
         // constructing the seam path
         // Alon: we stored the seams upside down instead from 0 to K
 //        allSeams[kNumOfSeams][currCostMatrix.length - 1] = minimalXIndex;
-        allSeams[currentSeamIndex][currCostMatrix.length - 1] = minimalXIndex;
-        for (int y = currCostMatrix.length - 1; y > 0 ; y--) {
+        allSeams[currentSeamIndex][inHeight - 1] =
+                new Seam(minimalXIndex, transformMatrix[inHeight - 1][minimalXIndex]);
+
+        for (int y = inHeight - 1; y > 0 ; y--) {
             // Alon: had y++ instead of y--
-            allSeams[currentSeamIndex][y - 1] = minParentsPaths[y][minimalXIndex];
-            minimalXIndex = minParentsPaths[y][minimalXIndex];
+            int upMinXIndex = minParentsPaths[y][minimalXIndex];
+            allSeams[currentSeamIndex][y - 1] = new Seam(upMinXIndex, transformMatrix[inHeight - 1][upMinXIndex]);
+            minimalXIndex = upMinXIndex;
         }
     }
 
@@ -135,7 +138,7 @@ public class SeamsCarver extends ImageProcessor {
         setForEachParameters(currentTransformWidth, inHeight);
         forEach((y, x) -> {
             // min pixel from seam
-            int skipIndex = allSeams[currentSeamIndex][y];
+            int skipIndex = allSeams[currentSeamIndex][y].getLocalReducedImageX();
             if (x >= skipIndex) {
                 updatedTransformMatrix[y][x] = transformMatrix[y][x + 1];
             }
