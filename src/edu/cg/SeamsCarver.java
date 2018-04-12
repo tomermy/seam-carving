@@ -245,7 +245,17 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     public BufferedImage showSeams(int seamColorRGB) {
-        //TODO: Implement this method (bonus), remove the exception.
-        throw new UnimplementedMethodException("showSeams");
+        BufferedImage coloredImage = duplicateWorkingImage();
+        if (kNumOfSeams > 0) {
+            findKSeams();
+            setForEachHeight(inHeight);
+            for (Seam[] currentSeam : allSeams) {
+                forEachHeight(y -> {
+                   int currentSeamXIndex = currentSeam[y].getOriginalImageX();
+                   coloredImage.setRGB(currentSeamXIndex, y, seamColorRGB);
+                });
+            }
+        }
+        return coloredImage;
     }
 }
