@@ -81,29 +81,18 @@ public class SeamsCarver extends ImageProcessor {
 
     //MARK: Unimplemented methods
     private BufferedImage reduceImageWidth() {
-//        //TODO: Implement this method, remove the exception.
-//        throw new UnimplementedMethodException("reduceImageWidth");
         findKSeams();
-        BufferedImage ans = newEmptyOutputSizedImage();
-//        pushForEachParameters();
-//        setForEachWidth(outWidth);
+        BufferedImage reducedSizeImage = newEmptyOutputSizedImage();
         setForEachParameters(outWidth, outHeight);
         forEach((y, x) -> {
             int mappedX = transformMatrix[y][x];
             int colorFromOriginal = workingImage.getRGB(mappedX, y);
-            ans.setRGB(x, y, colorFromOriginal);
+            reducedSizeImage.setRGB(x, y, colorFromOriginal);
         });
 
-        return ans;
+        return reducedSizeImage;
     }
 
-    //        this.logger.log("finds the " + this.numOfSeams + " minimal seams.");
-//        do {
-//            this.calculateCostsMatrix();
-//            this.logger.log("finds seam no: " + (this.kNumOfSeams + 1) + ".");
-//            this.removeSeam();
-//        } while (++this.kNumOfSeams < this.numOfSeams);
-//    }
     // todo: test after activating method
     private void findKSeams() {
         for (int i = 0; i < kNumOfSeams; i++) {
@@ -121,6 +110,7 @@ public class SeamsCarver extends ImageProcessor {
         for (int x = 0; x < currCostMatrix[0].length; x++) {
             if (currCostMatrix[currCostMatrix.length - 1][x]
                     < currCostMatrix[currCostMatrix.length - 1][minimalXIndex]) {
+
                 minimalXIndex = x;
             }
         }
@@ -139,10 +129,10 @@ public class SeamsCarver extends ImageProcessor {
     private void shiftLeftTransformMatrix(int currentSeamIndex) {
         // Alon: again, added param for current seam index we work on
 //        int[][] updatedTransformMatrix = new int[inHeight][inWidth - (kNumOfSeams + 1)];
-        int currentOutputWidth = inWidth - (currentSeamIndex + 1);
-        int[][] updatedTransformMatrix = new int[inHeight][currentOutputWidth];
+        int currentTransformWidth = inWidth - (currentSeamIndex + 1);
+        int[][] updatedTransformMatrix = new int[inHeight][currentTransformWidth];
 
-        setForEachParameters(currentOutputWidth, inHeight);
+        setForEachParameters(currentTransformWidth, inHeight);
         forEach((y, x) -> {
             // min pixel from seam
             int skipIndex = allSeams[currentSeamIndex][y];
@@ -156,35 +146,32 @@ public class SeamsCarver extends ImageProcessor {
         transformMatrix = updatedTransformMatrix;
     }
 
-    // todo: magnitude will be calculated locally (on the spot)
-    // todo: save greyscale version of the original image (not going to change)
     private long[][] getCostMatrix() {
-
         // Alon: we confused width and height
         long[][] tempCostMatrix = new long[transformMatrix.length][transformMatrix[0].length];
-        // init cost matrix clone for path recovery
+
+        // init cost matrix clone for fast path recovery
         minParentsPaths = new int[transformMatrix.length][transformMatrix[0].length];
 
-        // width, height
         // Alon: we forgot to add -1, out of bounds exception
-        // Alon: HUGE BUG with setParams, it runs from 0 to MAX - 1 !
+        // Alon: HUGE MINDFUCK with setParams, it runs from 0 to MAX - 1 !
         setForEachParameters(transformMatrix[0].length, transformMatrix.length);
 
         // update the cost matrix values in Mxy
         forEach((y, x) -> {
+            int mappedX = transformMatrix[y][x];
+
+            // Alon: validate that using greyscale is correct
             if (y == 0) {
-                tempCostMatrix[y][x] = tempCostMatrix[y][x];
-            } else {
-
-                // todo: Test that this is the right indexes
-                MinimalCost min = getMinimalCost(tempCostMatrix, y, x);
-                minParentsPaths[y][x] = min.getParentXIndex();
-
-
+                tempCostMatrix[y][x] = greyScaledImage[y][mappedX];
+            }
+            else {
                 int nextX = x + 1 <= transformMatrix[0].length - 1 ? x + 1 : x - 1;
-                int pixelEnergy = Math.abs(greyScaledImage[y][transformMatrix[y][x]]
+                int pixelEnergy = Math.abs(greyScaledImage[y][mappedX]
                         - greyScaledImage[y][transformMatrix[y][nextX]]);
 
+                MinimalCost min = getMinimalCost(tempCostMatrix, y, x);
+                minParentsPaths[y][x] = min.getParentXIndex();
                 tempCostMatrix[y][x] = min.getCost() + pixelEnergy;
             }
         });
@@ -193,30 +180,9 @@ public class SeamsCarver extends ImageProcessor {
 
     private MinimalCost getMinimalCost(long[][] tempCostMatrix, Integer y, Integer x) {
         int cV, cL, cR;
-        if (x - 1 < 0){
-            cV = greyScaledImage[y][transformMatrix[y][x + 1]];
-//                    cL = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
-        } else if (x + 1 > transformMatrix[0].length - 1) {
-            cV = greyScaledImage[y][transformMatrix[y][x - 1]];
-//                    cR = cV + (new Color(greyScaledImage.getRGB(transformMatrix[y - 1][x], y - 1))).getRed();
-        } else {
-            cV = Math.abs(greyScaledImage[y][transformMatrix[y][x + 1]]
-                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
-        }
-
-        if (x - 1 >= 0){
-            cL = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
-                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
-        } else {
-            cL = 0;
-        }
-
-        if (x + 1 <= transformMatrix[0].length - 1) {
-            cR = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
-                    - greyScaledImage[y][transformMatrix[y][x + 1]]);
-        } else {
-            cR = 0;
-        }
+        cV = getInitialCV(y, x);
+        cL = calculateCL(y, x, cV);
+        cR = calculateCR(y, x, cV);
 
         long left = x - 1 < 0 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x - 1] + cL;
         long up = tempCostMatrix[y - 1][x] + cV;
@@ -231,7 +197,43 @@ public class SeamsCarver extends ImageProcessor {
         else if (minCost == left && x - 1 >= 0) {
             parentX -= 1;
         }
+
         return new MinimalCost(minCost,parentX);
+    }
+
+    private int calculateCR(Integer y, Integer x, int cV) {
+        int cR;
+        if (x + 1 <= transformMatrix[0].length - 1) {
+            cR = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
+                    - greyScaledImage[y][transformMatrix[y][x + 1]]);
+        } else {
+            cR = 0;
+        }
+        return cR;
+    }
+
+    private int calculateCL(Integer y, Integer x, int cV) {
+        int cL;
+        if (x - 1 >= 0){
+            cL = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
+                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
+        } else {
+            cL = 0;
+        }
+        return cL;
+    }
+
+    private int getInitialCV(Integer y, Integer x) {
+        int cV;
+        if (x - 1 < 0){
+            cV = greyScaledImage[y][transformMatrix[y][x + 1]];
+        } else if (x + 1 > transformMatrix[0].length - 1) {
+            cV = greyScaledImage[y][transformMatrix[y][x - 1]];
+        } else {
+            cV = Math.abs(greyScaledImage[y][transformMatrix[y][x + 1]]
+                    - greyScaledImage[y][transformMatrix[y][x - 1]]);
+        }
+        return cV;
     }
 
     private BufferedImage increaseImageWidth() {
