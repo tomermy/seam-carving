@@ -123,9 +123,9 @@ public class SeamsCarver extends ImageProcessor {
 
         for (int y = inHeight - 1; y > 0 ; y--) {
             // Alon: had y++ instead of y--
-            int upMinXIndex = minParentsPaths[y][minimalXIndex];
-            allSeams[currentSeamIndex][y - 1] = new Seam(upMinXIndex, transformMatrix[inHeight - 1][upMinXIndex]);
-            minimalXIndex = upMinXIndex;
+            int nextXIndexUp = minParentsPaths[y][minimalXIndex];
+            allSeams[currentSeamIndex][y - 1] = new Seam(nextXIndexUp, transformMatrix[y - 1][nextXIndexUp]);
+            minimalXIndex = nextXIndexUp;
         }
     }
 
@@ -250,9 +250,11 @@ public class SeamsCarver extends ImageProcessor {
             findKSeams();
             setForEachHeight(inHeight);
             for (Seam[] currentSeam : allSeams) {
+//                System.out.println("---new Seam---");
                 forEachHeight(y -> {
                    int currentSeamXIndex = currentSeam[y].getOriginalImageX();
                    coloredImage.setRGB(currentSeamXIndex, y, seamColorRGB);
+//                   System.out.println(currentSeamXIndex);
                 });
             }
         }
