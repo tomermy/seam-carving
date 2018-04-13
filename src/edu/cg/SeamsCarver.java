@@ -19,11 +19,6 @@ public class SeamsCarver extends ImageProcessor {
     private int[][] minParentsPaths;
     private Seam[][] allSeams;
     private int kNumOfSeams;
-//    private int[][] currentCostMatrix;
-
-
-    //TODO: Add some additional fields:
-
 
     //MARK: Constructor
     public SeamsCarver(Logger logger, BufferedImage workingImage,
@@ -38,7 +33,7 @@ public class SeamsCarver extends ImageProcessor {
         if (numOfSeams > inWidth / 2)
             throw new RuntimeException("Can not apply seam carving: too many seams...");
 
-        //Sets resizeOp with an appropriate method reference
+        // Sets resizeOp with an appropriate method reference
         if (outWidth > inWidth)
             resizeOp = this::increaseImageWidth;
         else if (outWidth < inWidth)
@@ -46,13 +41,7 @@ public class SeamsCarver extends ImageProcessor {
         else
             resizeOp = this::duplicateWorkingImage;
 
-        // todo: validate the order of width and heigh
-//        int originalImgWidth = workingImage.getWidth();
-//        int originalImgHeight = workingImage.getHeight();
-
         transformMatrix = new int[inHeight][inWidth];
-//        setForEachParameters(outWidth, inHeight); // Alon: why did we choose outWidth?? XD
-//        setForEachParameters(inWidth, inHeight);
         setForEachInputParameters();
         forEach((y, x) -> {
             // contains the x location on the original image (y is always the same)
@@ -61,11 +50,9 @@ public class SeamsCarver extends ImageProcessor {
 
         // init greyScaled version of the working image
         initializeGreyScaledImage();
-        // todo: verify it gets the right value
         kNumOfSeams = Math.abs(inWidth - outWidth);
         allSeams = new Seam[kNumOfSeams][inHeight];
 
-        //TODO: Initialize your additional fields and apply some preliminary calculations:
     }
 
     private void initializeGreyScaledImage() {
@@ -101,7 +88,6 @@ public class SeamsCarver extends ImageProcessor {
         }
     }
 
-    // Alon: added an index for knowing on which seam we are currently working
     private void findSeam(int currentSeamIndex) {
         long[][] currCostMatrix = getCostMatrix();
 
@@ -116,13 +102,10 @@ public class SeamsCarver extends ImageProcessor {
         }
 
         // constructing the seam path
-        // Alon: we stored the seams upside down instead from 0 to K
-//        allSeams[kNumOfSeams][currCostMatrix.length - 1] = minimalXIndex;
         allSeams[currentSeamIndex][inHeight - 1] =
                 new Seam(minimalXIndex, transformMatrix[inHeight - 1][minimalXIndex]);
 
         for (int y = inHeight - 1; y > 0 ; y--) {
-            // Alon: had y++ instead of y--
             int nextXIndexUp = minParentsPaths[y][minimalXIndex];
             allSeams[currentSeamIndex][y - 1] = new Seam(nextXIndexUp, transformMatrix[y - 1][nextXIndexUp]);
             minimalXIndex = nextXIndexUp;
@@ -130,8 +113,6 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     private void shiftLeftTransformMatrix(int currentSeamIndex) {
-        // Alon: again, added param for current seam index we work on
-//        int[][] updatedTransformMatrix = new int[inHeight][inWidth - (kNumOfSeams + 1)];
         int currentTransformWidth = inWidth - (currentSeamIndex + 1);
         int[][] updatedTransformMatrix = new int[inHeight][currentTransformWidth];
 
@@ -150,29 +131,23 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     private long[][] getCostMatrix() {
-        // Alon: we confused width and height
         long[][] tempCostMatrix = new long[transformMatrix.length][transformMatrix[0].length];
 
         // init cost matrix clone for fast path recovery
         minParentsPaths = new int[transformMatrix.length][transformMatrix[0].length];
-
-        // Alon: we forgot to add -1, out of bounds exception
-        // Alon: HUGE MINDFUCK with setParams, it runs from 0 to MAX - 1 !
         setForEachParameters(transformMatrix[0].length, transformMatrix.length);
 
         // update the cost matrix values in Mxy
         forEach((y, x) -> {
             int mappedX = transformMatrix[y][x];
+            int nextX = x + 1 <= transformMatrix[0].length - 1 ? x + 1 : x - 1;
+            int pixelEnergy = Math.abs(greyScaledImage[y][mappedX]
+                    - greyScaledImage[y][transformMatrix[y][nextX]]);
 
-            // Alon: validate that using greyscale is correct
             if (y == 0) {
-                tempCostMatrix[y][x] = greyScaledImage[y][mappedX];
+                tempCostMatrix[y][x] = pixelEnergy;
             }
             else {
-                int nextX = x + 1 <= transformMatrix[0].length - 1 ? x + 1 : x - 1;
-                int pixelEnergy = Math.abs(greyScaledImage[y][mappedX]
-                        - greyScaledImage[y][transformMatrix[y][nextX]]);
-
                 MinimalCost min = getMinimalCost(tempCostMatrix, y, x);
                 minParentsPaths[y][x] = min.getParentXIndex();
                 tempCostMatrix[y][x] = min.getCost() + pixelEnergy;
@@ -250,11 +225,9 @@ public class SeamsCarver extends ImageProcessor {
             findKSeams();
             setForEachHeight(inHeight);
             for (Seam[] currentSeam : allSeams) {
-//                System.out.println("---new Seam---");
                 forEachHeight(y -> {
                    int currentSeamXIndex = currentSeam[y].getOriginalImageX();
                    coloredImage.setRGB(currentSeamXIndex, y, seamColorRGB);
-//                   System.out.println(currentSeamXIndex);
                 });
             }
         }

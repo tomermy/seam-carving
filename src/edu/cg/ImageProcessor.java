@@ -92,7 +92,7 @@ public class ImageProcessor extends FunctioalForEachLoops {
 
     public BufferedImage gradientMagnitude() {
         //TODO: Implement this method, remove the exception.
-        logger.log("Preparing for greyscale changing...");
+        logger.log("Preparing for gradient magnitude changing...");
 
         BufferedImage greyScaledImage = greyscale();
         BufferedImage ans = greyscale();
@@ -199,7 +199,7 @@ public class ImageProcessor extends FunctioalForEachLoops {
             ans.setRGB(x, y, resultColor.getRGB());
         });
 
-        logger.log("nearest neighbor resize done!");
+        logger.log("bilinear resize done!");
 
         return ans;
     }
