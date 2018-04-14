@@ -2,6 +2,7 @@ package edu.cg;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 
 public class SeamsCarver extends ImageProcessor {
 
@@ -17,7 +18,7 @@ public class SeamsCarver extends ImageProcessor {
     private int[][] transformMatrix;
     private int[][] greyScaledImage;
     private int[][] minParentsPaths;
-    private Seam[][] allSeams;
+    private SeamData[][] allSeams;
     private int kNumOfSeams;
 
     //MARK: Constructor
@@ -51,14 +52,14 @@ public class SeamsCarver extends ImageProcessor {
         // init greyScaled version of the working image
         initializeGreyScaledImage();
         kNumOfSeams = Math.abs(inWidth - outWidth);
-        allSeams = new Seam[kNumOfSeams][inHeight];
+        allSeams = new SeamData[kNumOfSeams][inHeight];
 
     }
 
     private void initializeGreyScaledImage() {
         BufferedImage tempGreyScaledImage = greyscale();
         greyScaledImage = new int[this.inHeight][this.inWidth];
-        forEach((y, x) -> greyScaledImage[y][x] = new Color(tempGreyScaledImage.getRGB(x,y)).getRed());
+        forEach((y, x) -> greyScaledImage[y][x] = new Color(tempGreyScaledImage.getRGB(x, y)).getRed());
     }
 
     //MARK: Methods
@@ -68,8 +69,11 @@ public class SeamsCarver extends ImageProcessor {
 
     //MARK: Unimplemented methods
     private BufferedImage reduceImageWidth() {
-        findKSeams();
         BufferedImage reducedSizeImage = newEmptyOutputSizedImage();
+        findKSeams();
+
+        // After finding K seams, transformMatrix represents the state
+        // of all the pixels for the reduced size working image.
         setForEachParameters(outWidth, outHeight);
         forEach((y, x) -> {
             int mappedX = transformMatrix[y][x];
@@ -80,7 +84,6 @@ public class SeamsCarver extends ImageProcessor {
         return reducedSizeImage;
     }
 
-    // todo: test after activating method
     private void findKSeams() {
         for (int i = 0; i < kNumOfSeams; i++) {
             findSeam(i);
@@ -91,7 +94,7 @@ public class SeamsCarver extends ImageProcessor {
     private void findSeam(int currentSeamIndex) {
         long[][] currCostMatrix = getCostMatrix();
 
-        // find minimum at bottom row of matrix
+        // find minimal cost pixel at bottom row of matrix
         int minimalXIndex = 0;
         for (int x = 0; x < currCostMatrix[0].length; x++) {
             if (currCostMatrix[currCostMatrix.length - 1][x]
@@ -101,13 +104,16 @@ public class SeamsCarver extends ImageProcessor {
             }
         }
 
-        // constructing the seam path
+        // Store the seam data in a structure including:
+        // X index of the original image
+        // X index of the local state for the TransformationMatrix
         allSeams[currentSeamIndex][inHeight - 1] =
-                new Seam(minimalXIndex, transformMatrix[inHeight - 1][minimalXIndex]);
+                new SeamData(minimalXIndex, transformMatrix[inHeight - 1][minimalXIndex]);
 
-        for (int y = inHeight - 1; y > 0 ; y--) {
+        // Continue constructing the seam along the Y-axis.
+        for (int y = inHeight - 1; y > 0; y--) {
             int nextXIndexUp = minParentsPaths[y][minimalXIndex];
-            allSeams[currentSeamIndex][y - 1] = new Seam(nextXIndexUp, transformMatrix[y - 1][nextXIndexUp]);
+            allSeams[currentSeamIndex][y - 1] = new SeamData(nextXIndexUp, transformMatrix[y - 1][nextXIndexUp]);
             minimalXIndex = nextXIndexUp;
         }
     }
@@ -116,24 +122,26 @@ public class SeamsCarver extends ImageProcessor {
         int currentTransformWidth = inWidth - (currentSeamIndex + 1);
         int[][] updatedTransformMatrix = new int[inHeight][currentTransformWidth];
 
+        // Construct a smaller version of the transform matrix based on seam data
         setForEachParameters(currentTransformWidth, inHeight);
         forEach((y, x) -> {
-            // min pixel from seam
+            // min cost pixel from current seam that will be skipped
             int skipIndex = allSeams[currentSeamIndex][y].getLocalReducedImageX();
             if (x >= skipIndex) {
                 updatedTransformMatrix[y][x] = transformMatrix[y][x + 1];
-            }
-            else {
+            } else {
                 updatedTransformMatrix[y][x] = transformMatrix[y][x];
             }
         });
+
+        // Update the current state of the transform matrix
         transformMatrix = updatedTransformMatrix;
     }
 
     private long[][] getCostMatrix() {
         long[][] tempCostMatrix = new long[transformMatrix.length][transformMatrix[0].length];
 
-        // init cost matrix clone for fast path recovery
+        // init cost matrix clone for fast path recovery in seam construction
         minParentsPaths = new int[transformMatrix.length][transformMatrix[0].length];
         setForEachParameters(transformMatrix[0].length, transformMatrix.length);
 
@@ -146,11 +154,10 @@ public class SeamsCarver extends ImageProcessor {
 
             if (y == 0) {
                 tempCostMatrix[y][x] = pixelEnergy;
-            }
-            else {
+            } else {
                 MinimalCost min = getMinimalCost(tempCostMatrix, y, x);
                 minParentsPaths[y][x] = min.getParentXIndex();
-                tempCostMatrix[y][x] = min.getCost() + pixelEnergy;
+                tempCostMatrix[y][x] = pixelEnergy + min.getCost();
             }
         });
         return tempCostMatrix;
@@ -166,17 +173,16 @@ public class SeamsCarver extends ImageProcessor {
         long up = tempCostMatrix[y - 1][x] + cV;
         long right = x + 1 > tempCostMatrix[0].length - 1 ? Long.MAX_VALUE : tempCostMatrix[y - 1][x + 1] + cR;
 
-        // Store the min path direction for fast path recovery
+        // Store the minimal path direction for fast path recovery
         int parentX = x;
         long minCost = Math.min(up, Math.min(left, right));
         if (minCost == right && x + 1 <= transformMatrix[0].length - 1) {
             parentX += 1;
-        }
-        else if (minCost == left && x - 1 >= 0) {
+        } else if (minCost == left && x - 1 >= 0) {
             parentX -= 1;
         }
 
-        return new MinimalCost(minCost,parentX);
+        return new MinimalCost(minCost, parentX);
     }
 
     private int calculateCR(Integer y, Integer x, int cV) {
@@ -192,7 +198,7 @@ public class SeamsCarver extends ImageProcessor {
 
     private int calculateCL(Integer y, Integer x, int cV) {
         int cL;
-        if (x - 1 >= 0){
+        if (x - 1 >= 0) {
             cL = cV + Math.abs(greyScaledImage[y - 1][transformMatrix[y - 1][x]]
                     - greyScaledImage[y][transformMatrix[y][x - 1]]);
         } else {
@@ -203,7 +209,7 @@ public class SeamsCarver extends ImageProcessor {
 
     private int getInitialCV(Integer y, Integer x) {
         int cV;
-        if (x - 1 < 0){
+        if (x - 1 < 0) {
             cV = greyScaledImage[y][transformMatrix[y][x + 1]];
         } else if (x + 1 > transformMatrix[0].length - 1) {
             cV = greyScaledImage[y][transformMatrix[y][x - 1]];
@@ -215,22 +221,53 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     private BufferedImage increaseImageWidth() {
-        //TODO: Implement this method, remove the exception.
-        throw new UnimplementedMethodException("increaseImageWidth");
+        BufferedImage increasedSizeImage = newEmptyOutputSizedImage();
+
+        // Container for the enlarged size image
+        int[][] enlargedImageIndexMatrix = new int[outHeight][outWidth];
+
+        // Find the seams to be duplicated from original image
+        findKSeams();
+
+        // Insert the original image indexes to the new mapping matrix
+        setForEachInputParameters();
+        forEach((y, x) -> enlargedImageIndexMatrix[y][x] = x);
+
+        // Add the duplicated pixel indexes to the new image container
+        setForEachParameters(kNumOfSeams, outHeight);
+        forEach((y, x) -> enlargedImageIndexMatrix[y][inWidth + x] = allSeams[x][y].getOriginalImageX());
+
+        // Sort each row of the full image container with all indexes
+        for (int[] newImageRow : enlargedImageIndexMatrix) {
+            Arrays.sort(newImageRow);
+        }
+
+        // Build output image according to the index mapping
+        setForEachParameters(outWidth, outHeight);
+        forEach((y, x) -> {
+            int rgb = workingImage.getRGB(enlargedImageIndexMatrix[y][x], y);
+            increasedSizeImage.setRGB(x, y, rgb);
+        });
+
+        return increasedSizeImage;
     }
 
     public BufferedImage showSeams(int seamColorRGB) {
         BufferedImage coloredImage = duplicateWorkingImage();
+
         if (kNumOfSeams > 0) {
             findKSeams();
             setForEachHeight(inHeight);
-            for (Seam[] currentSeam : allSeams) {
+
+            // Use the seams found in order to color the working image copy
+            for (SeamData[] currentSeamData : allSeams) {
                 forEachHeight(y -> {
-                   int currentSeamXIndex = currentSeam[y].getOriginalImageX();
-                   coloredImage.setRGB(currentSeamXIndex, y, seamColorRGB);
+                    int currentSeamXIndex = currentSeamData[y].getOriginalImageX();
+                    coloredImage.setRGB(currentSeamXIndex, y, seamColorRGB);
                 });
             }
         }
+
         return coloredImage;
     }
 }

@@ -41,7 +41,6 @@ public class ImageProcessor extends FunctioalForEachLoops {
     //MARK: Change picture hue - example
     public BufferedImage changeHue() {
         logger.log("Preparing for hue changing...");
-
         int r = rgbWeights.redWeight;
         int g = rgbWeights.greenWeight;
         int b = rgbWeights.blueWeight;
@@ -57,7 +56,6 @@ public class ImageProcessor extends FunctioalForEachLoops {
             Color color = new Color(red, green, blue);
             ans.setRGB(x, y, color.getRGB());
         });
-
         logger.log("Changing hue done!");
 
         return ans;
@@ -66,7 +64,6 @@ public class ImageProcessor extends FunctioalForEachLoops {
 
     //MARK: Unimplemented methods
     public BufferedImage greyscale() {
-        //TODO: Implement this method, remove the exception.
         logger.log("Preparing for greyscale changing...");
 
         int r = rgbWeights.redWeight;
@@ -84,16 +81,13 @@ public class ImageProcessor extends FunctioalForEachLoops {
             Color resultColor = new Color(greyColor, greyColor, greyColor);
             ans.setRGB(x, y, resultColor.getRGB());
         });
-
         logger.log("Changing greyscale done!");
 
         return ans;
     }
 
     public BufferedImage gradientMagnitude() {
-        //TODO: Implement this method, remove the exception.
         logger.log("Preparing for gradient magnitude changing...");
-
         BufferedImage greyScaledImage = greyscale();
         BufferedImage ans = greyscale();
 
@@ -110,7 +104,6 @@ public class ImageProcessor extends FunctioalForEachLoops {
 
             ans.setRGB(x, y, resultColor.getRGB());
         });
-
         logger.log("gradient magnitude done!");
 
         return ans;
@@ -129,7 +122,6 @@ public class ImageProcessor extends FunctioalForEachLoops {
 
 
     public BufferedImage nearestNeighbor() {
-        //TODO: Implement this method, remove the exception.
         logger.log("Preparing for nearest neighbor resize...");
         setForEachOutputParameters();
         BufferedImage ans = newEmptyOutputSizedImage();
@@ -146,14 +138,12 @@ public class ImageProcessor extends FunctioalForEachLoops {
             ans.setRGB(x, y, nearestNeighborRGB);
 
         });
-
         logger.log("nearest neighbor resize done!");
 
         return ans;
     }
 
     public BufferedImage bilinear() {
-        //TODO: Implement this method, remove the exception.
         logger.log("Preparing for bilinear resize...");
         setForEachOutputParameters();
         BufferedImage ans = newEmptyOutputSizedImage();

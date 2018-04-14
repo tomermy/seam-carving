@@ -1,10 +1,10 @@
 package edu.cg;
 
-public class Seam {
+public class SeamData {
     private final int originalImageX;
     private final int localReducedImageX;
 
-    public Seam(int localReducedImageX, int originalImageX) {
+    public SeamData(int localReducedImageX, int originalImageX) {
         this.localReducedImageX = localReducedImageX;
         this.originalImageX = originalImageX;
     }
