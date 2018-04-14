@@ -19,7 +19,6 @@ public class SeamsCarver extends ImageProcessor {
     private int[][] greyScaledImage;
     private int[][] minParentsPaths;
     private SeamData[][] allSeams;
-    private int kNumOfSeams;
 
     //MARK: Constructor
     public SeamsCarver(Logger logger, BufferedImage workingImage,
@@ -51,8 +50,7 @@ public class SeamsCarver extends ImageProcessor {
 
         // init greyScaled version of the working image
         initializeGreyScaledImage();
-        kNumOfSeams = Math.abs(inWidth - outWidth);
-        allSeams = new SeamData[kNumOfSeams][inHeight];
+        allSeams = new SeamData[numOfSeams][inHeight];
 
     }
 
@@ -85,7 +83,9 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     private void findKSeams() {
-        for (int i = 0; i < kNumOfSeams; i++) {
+        this.logger.log("finding " + this.numOfSeams + " minimal seams");
+        for (int i = 0; i < numOfSeams; i++) {
+            this.logger.log("finding seam no: " + (i + 1));
             findSeam(i);
             shiftLeftTransformMatrix(i);
         }
@@ -95,6 +95,7 @@ public class SeamsCarver extends ImageProcessor {
         long[][] currCostMatrix = getCostMatrix();
 
         // find minimal cost pixel at bottom row of matrix
+        this.logger.log("looking for the X index of the bottom row with minimal cost");
         int minimalXIndex = 0;
         for (int x = 0; x < currCostMatrix[0].length; x++) {
             if (currCostMatrix[currCostMatrix.length - 1][x]
@@ -107,10 +108,14 @@ public class SeamsCarver extends ImageProcessor {
         // Store the seam data in a structure including:
         // X index of the original image
         // X index of the local state for the TransformationMatrix
+        int originalImageMinX = transformMatrix[inHeight - 1][minimalXIndex];
+        this.logger.log("minX = " + originalImageMinX);
+        this.logger.log("constructing the path of minimal seam");
         allSeams[currentSeamIndex][inHeight - 1] =
-                new SeamData(minimalXIndex, transformMatrix[inHeight - 1][minimalXIndex]);
+                new SeamData(minimalXIndex, originalImageMinX);
 
         // Continue constructing the seam along the Y-axis.
+        this.logger.log("stores the path.");
         for (int y = inHeight - 1; y > 0; y--) {
             int nextXIndexUp = minParentsPaths[y][minimalXIndex];
             allSeams[currentSeamIndex][y - 1] = new SeamData(nextXIndexUp, transformMatrix[y - 1][nextXIndexUp]);
@@ -123,6 +128,7 @@ public class SeamsCarver extends ImageProcessor {
         int[][] updatedTransformMatrix = new int[inHeight][currentTransformWidth];
 
         // Construct a smaller version of the transform matrix based on seam data
+        this.logger.log("removing seam");
         setForEachParameters(currentTransformWidth, inHeight);
         forEach((y, x) -> {
             // min cost pixel from current seam that will be skipped
@@ -139,6 +145,7 @@ public class SeamsCarver extends ImageProcessor {
     }
 
     private long[][] getCostMatrix() {
+        this.logger.log("calculating the costs matrix");
         long[][] tempCostMatrix = new long[transformMatrix.length][transformMatrix[0].length];
 
         // init cost matrix clone for fast path recovery in seam construction
@@ -234,7 +241,7 @@ public class SeamsCarver extends ImageProcessor {
         forEach((y, x) -> enlargedImageIndexMatrix[y][x] = x);
 
         // Add the duplicated pixel indexes to the new image container
-        setForEachParameters(kNumOfSeams, outHeight);
+        setForEachParameters(numOfSeams, outHeight);
         forEach((y, x) -> enlargedImageIndexMatrix[y][inWidth + x] = allSeams[x][y].getOriginalImageX());
 
         // Sort each row of the full image container with all indexes
@@ -252,10 +259,17 @@ public class SeamsCarver extends ImageProcessor {
         return increasedSizeImage;
     }
 
+    /**
+     * This method colors the pixels which would have been used
+     * to construct seams in order to reduce/increase the image size
+     * based on the Seam carving algorithm.
+     * @param seamColorRGB - Color chosen for seam pixels.
+     * @return - Copy of the image including the colored pixels.
+     */
     public BufferedImage showSeams(int seamColorRGB) {
         BufferedImage coloredImage = duplicateWorkingImage();
 
-        if (kNumOfSeams > 0) {
+        if (numOfSeams > 0) {
             findKSeams();
             setForEachHeight(inHeight);
 

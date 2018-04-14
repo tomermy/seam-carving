@@ -1,0 +1,15 @@
+Description:
+We implemented the showSeams() method as follows:
+- Find the K seams that would have been removed.
+- Using the stored data of the K seams, in order to target the suitable pixels
+	on the working image copy and color them in the required color input.
+	Each Seam pixel holds the matching pixel mapping of the original image.
+
+Code Documentation:
+    /**
+     * This method colors the pixels which would have been used
+     * to construct seams in order to reduce/increase the image size
+     * based on the Seam carving algorithm.
+     * @param seamColorRGB - Color chosen for seam pixels.
+     * @return - Copy of the image including the colored pixels.
+     */
